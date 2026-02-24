@@ -1,0 +1,79 @@
+模块化规范：
+·命名空间名代表模块名
+·API函数都是命名空间内的全局函数
+·模块CPP采用数据和逻辑代码分离模式，有一个模块对象mdata（除了构造和析构函数及必要预处理数据的方法之外不能有其他方法）
+·CPP有静态函数get_mdata函数获取这个模块mdata对象的静态单例
+·为确保api被调用是mdata已经初始化，cpp的api函数请这样用：auto md = get_mdata(); 再访问md->xxx
+·模块非逻辑代码部分（即函数除外）的变量类实例等必须放在mdata对象内，
+·数据结构和类成员变量后面加一个下划线_
+·如果模块是so的，要引用"aos.h"，头文件api使用AA_API前缀，cpp文件api使用AA_API前缀
+
+C++模块H文件样例：
+#pragma once
+
+// 第1层定格不缩进
+namespace mod_name
+{
+    // 按嵌套层级使用tab键缩进
+    // 不开放的类型接口不能出现在H文件里，除非API使用且CPP文件也使用的则在二级namespace定义避免污染
+    namespace pvt
+    {
+    }
+
+    // API接口函数声明，so的API要用AA_API前缀
+    void api();
+}
+
+C++模块CPP文件样例：
+#include "mod_name.h"
+
+// 第1层定格不缩进
+namespace mod_name
+{
+    // 按嵌套层级使用tab键缩进
+    // 匿名命名空间确保同一个模块mod_name命名空间下的多个cpp没有重复的mdata
+    namespace
+    {
+        // 按嵌套层级使用tab键缩进
+        // 每个模块内部数据，除了构造和析构函数不能有其它方法，确保类型不重名
+        class mdata
+        {
+        public:
+            // 直接在类定义构造析构函数初始化
+            mdata()
+            {
+                // 在这里进行模块初始化
+            }   
+
+            ~mdata()
+            {
+                // 在这里进行模块反初始化
+            }
+        public:
+            // 所有数据在public，后面加_
+            int data_;
+        };
+
+        // static单例确保api被调用前已经初始化
+        static mdata* get_mdata()
+        {
+            static mdata md_;
+            return  &md_;
+        }
+
+        // 确保CPP单元初始化阶段对mdata行初始化
+        static auto _ = get_mdata();
+    }
+    
+    // 按嵌套层级使用tab键缩进
+    // API接口函数实现，so的API要用AA_API前缀
+    void api()
+    {
+        // 如果api需要用到数据部分，请这样操作
+        auto md = get_mdata();
+        md->xxx
+    }
+}
+
+注：
+必须严格按照模块要求和范例编写模块代码

@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "aa",
+      "type": "shell",
+      "command": "${workspaceFolder}/wsl_build.sh debug all",   // Linux/WSL
+            "windows": {                                     // Windows 覆盖
+                "command": "${workspaceFolder}\\win_build.bat debug all"
+            },
+      "args": [],
+      "group": "build",
+      "presentation":
+      {
+        "clear": true
+      }
+    }
+  ]
+}

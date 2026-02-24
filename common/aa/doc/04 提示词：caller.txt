@@ -1,0 +1,36 @@
+前提：
+1、有多个线程，每个线程绑定一个LUA状态机，有线程列表保存线程对象，每个线程都有任务队列执行任务
+2、每个游戏对象叫entity，每个entity有一个id：entity_id
+3、每个entity被创建时都会同步到c++全局map，标志这个entity在哪个状态机
+4、可以根据entity_id找到对应状态的entity对象
+
+1、跨状态机同步调用目标虚拟机模块函数：
+function call_sync({entity_id1, entity_id2}, module_name, method_name, ...)
+
+2、跨状态机异步调用目标虚拟机模块函数：
+function call_async({entity_id1, entity_id2}, module_name, method_name, callback, ...)
+
+3、跨状态机同步在目标虚拟机执行函数：
+function exe_sync({entity_id1, entity_id2}, exe_func, ...)
+
+4、跨状态机异步在目标虚拟机执行函数：
+function exe_async({entity_id1, entity_id2}, exe_func, callback, ...)
+
+要求说明：
+1、call_sync接受目标模块方法的多个返回值，exe_sync接受在目标状态执行的函数exe_func的多个返回值
+2、call_async的callback的参数是目标模块方法的多个返回值
+3、exe_async的callback的参数是在目标状态执行的函数exe_func的多个返回值
+4、返回值支持类型：number、string、bool、table
+5、目标模块module_name方法method_name的访问方式是.
+6、遍历entity_id列表逐个执行目标模块方法或exe_func
+7、目标模块方法或exe_func的首个参数是该状态机的entity对象，其余是args
+8、args的arg支持类型：number、string、bool、table
+9、在目标状态机线程执行目标模块module_name的method_name方法
+10、在目标状态机线程执行exe_func
+
+注意：
+1、一个状态机的function是不能直接push给两外一个状态机的，所以可以使用string.dump对exe_func进行序列化和反序列化
+2、一个状态机的table是不能直接push给两外一个状态机的，所以可以使用messagepack对table进行序列化和反序列化
+
+用linux c++完成上面4个lua函数的c++实现代码
+

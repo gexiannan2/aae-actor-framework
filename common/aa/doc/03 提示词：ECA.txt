@@ -1,0 +1,42 @@
+using eca_cond = bool(*)(...);
+using eca_action = void(*)(...);
+
+class eca_info
+{
+public:
+    eca_cond m_cond;
+    eca_action m_action;
+    void* m_handler_owner;
+};
+
+using eca_infos = std::vector<eca_info>;
+
+void listen(std::uint32_t id, const std::string& key, eca_action action, void* handler_owner = nullptr);
+void listen(std::uint32_t id, const std::string& key, eca_cond cond, eca_action action, void* handler_owner = nullptr);
+const eca_infos& get_infos(const std::string& key);
+
+template<typename... Args>
+inline void trigger(std::uint32_t id, const std::string& key, Args ...args)
+{
+    auto infos get_infos(key);
+    for (auto& info : infos)
+    {
+        if (info.m_cond && !info.m_cond(...args))
+        {
+            continue;
+        }
+
+        if (info.handler_owner)
+        {
+            // 调用对象方法
+            (info.handler_owner)->info.m_action()...args);
+        }
+        else
+        {
+            // 调用全局函数
+            info.m_action(...args);
+        }
+    }
+}
+
+补全上面的功能

@@ -1,0 +1,179 @@
+用c++写一个类似shareded_ptr的共享指针：aa_ptr<T>，T可以是struc或者class，struc和class的必须继承自struct aa_obj。
+aa_obj私有成员：原子计数器 ref_fouct;
+aa_obj私有私有函数inline ref：对ref_fouct原子加1
+aa_obj私有私有函数inline unref：对ref_fouct原子减1并返回最新值，最新值为0时，是否自身
+aa_obj默认虚析构函数
+
+aa_obj友元给aa_ptr，aa_ptr构造（包括复制构造等）时调用ref，析构时调用unref。
+强调：
+1、aa_ptr能实现标准库shareded_ptr的功能，比如可以aa_ptr->可以访问aa_obj的公共成员和方法、aa_ptr==nullptr判断等
+2、aa_ptr能实现标准库shareded_ptr一样的线程安全要求
+
+#include <atomic>
+#include <iostream>
+
+// 定义 aa_obj 基类
+struct aa_obj {
+private:
+    std::atomic_int ref_count_;  // 原子计数器
+    
+    // 内联函数 ref, 对 ref_count_ 原子加1
+    inline void ref() {
+        ref_count_.fetch_add(1, std::memory_order_relaxed);
+    }
+    
+    // 内联函数 unref，对 ref_count_ 原子减1并返回最新值，当值为0时删除自身
+    inline int unref() {
+        int new_count = ref_count_.fetch_sub(1, std::memory_order_release);
+        std::atomic_thread_fence(std::memory_order_acquire);
+        
+        if (new_count == 1) {
+            delete this;
+            return 0;
+        }
+        return new_count - 1;
+    }
+
+    // 默认构造函数
+    aa_obj() : ref_count_(1) {}  // 初始化引用计数为1
+    
+    // 虚析构函数，确保派生类正确析构
+    virtual ~aa_obj() {
+        if (ref_count_.load() != 0) {
+            std::cerr << "Error: aa_obj still has references on destruction" << std::endl;
+        }
+    }
+
+public:
+    // 友元声明，允许 aa_ptr 访问 aa_obj 的私有成员
+    template<typename T>
+    friend class aa_ptr;
+};
+
+// 定义 aa_ptr 模板类
+template<typename T>
+class aa_ptr {
+private:
+    T* ptr_;  // 指向 T 对象的指针，T 必须继承自 aa_obj
+    
+    // 增加引用计数
+    void add_ref() {
+        if (ptr_ != nullptr) {
+            ptr_->ref();
+        }
+    }
+    
+    // 减少引用计数，并在必要时删除对象
+    void release() {
+        if (ptr_ != nullptr) {
+            ptr_->unref();
+        }
+    }
+
+public:
+    // 构造函数
+    explicit aa_ptr(T* ptr = nullptr) : ptr_(ptr) {
+        if (ptr_ != nullptr) {
+            add_ref();  // 初始化时增加引用计数
+        }
+    }
+    
+    // 拷贝构造函数
+    aa_ptr(const aa_ptr& other) : ptr_(other.ptr_) {
+        add_ref();  // 增加引用计数
+    }
+    
+    // 移动构造函数
+    aa_ptr(aa_ptr&& other) noexcept : ptr_(other.ptr_) {
+        other.ptr_ = nullptr;
+    }
+    
+    // 拷贝赋值操作符
+    aa_ptr& operator=(const aa_ptr& other) {
+        if (this != &other) {
+            T* new_ptr = other.ptr_;
+            if (new_ptr != nullptr) {
+                new_ptr->ref();
+            }
+            release();  // 先释放旧指针
+            ptr_ = new_ptr;
+        }
+        return *this;
+    }
+    
+    // 移动赋值操作符
+    aa_ptr& operator=(aa_ptr&& other) noexcept {
+        if (this != &other) {
+            release();  // 释放当前指针
+            ptr_ = other.ptr_;
+            other.ptr_ = nullptr;
+        }
+        return *this;
+    }
+    
+    // 析构函数
+    ~aa_ptr() {
+        release();
+    }
+    
+    // 解引用操作符
+    T& operator*() const {
+        return *ptr_;
+    }
+    
+    // 箭头操作符
+    T* operator->() const {
+        return ptr_;
+    }
+    
+    // 获取原始指针
+    T* get() const {
+        return ptr_;
+    }
+    
+    // 检查是否为空
+    bool is_null() const {
+        return ptr_ == nullptr;
+    }
+    
+    // 重置指针
+    void reset(T* new_ptr = nullptr) {
+        if (ptr_ != new_ptr) {
+            if (new_ptr != nullptr) {
+                new_ptr->ref();
+            }
+            T* old_ptr = ptr_;
+            ptr_ = new_ptr;
+            if (old_ptr != nullptr) {
+                old_ptr->unref();
+            }
+        }
+    }
+    
+    // 获取引用计数
+    long use_count() const {
+        if (ptr_ != nullptr) {
+            return ptr_->ref_count_.load();
+        }
+        return 0;
+    }
+};
+
+此项方案和shareted_spt可以减少另外申请引用计数器的内存空间的开销，是否比shareted_spt性能更优？
+
+aa_ptr实现的方案与std::shared_ptr在内存布局和性能方面存在一些差异：
+内存开销对比
+aa_ptr：由于引用计数直接集成在基类ReferenceCounted中，继承自该基类的对象自身就包
+含了引用计数成员，无需额外分配专门的引用计数存储空间，减少了内存占用。
+std::shared_ptr：通常会为引用计数单独分配一块内存空间，这会带来一定的内存开销，
+特别是在管理大量小对象时，这部分开销可能会比较明显。
+性能对比
+aa_ptr：在构造、析构以及引用计数操作时，直接调用对象自身的ref和unref方法，方法调用开销相对较小，
+且由于引用计数与对象本身紧密绑定，访问引用计数的效率较高，整体性能可能优于std::shared_ptr。
+std::shared_ptr：由于引用计数是独立管理的，在进行引用计数操作时需要访问独立的内存位置，
+可能会引入额外的内存访问开销。此外，std::shared_ptr为了实现更多功能（如弱引用计数等），
+在内部实现上相对复杂，也可能会影响性能。
+但需要注意的是，std::shared_ptr是 C++ 标准库提供的成熟实现，经过了广泛的测试和优化，
+在多线程环境下也能保证引用计数操作的原子性和线程安全。而自定义的aa_ptr实现虽然在某些方面可能具有一定的性能优势，
+但在功能完整性和健壮性方面可能不如std::shared_ptr。在实际开发中，如果对性能有极高的要求且场景允许，
+可以考虑使用自定义的aa_ptr；但在大多数情况下，建议优先使用std::shared_ptr，以确保代码的正确性和可维护性。

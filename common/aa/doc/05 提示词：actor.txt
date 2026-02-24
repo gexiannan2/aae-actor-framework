@@ -1,0 +1,458 @@
+  class actor
+
+        // struct要字节对齐以节省空间：#pragma pack(push, 1)
+        struct value
+        {
+            std::uint8_t type;
+            std::int64_t vint;
+            std::string vstr;
+            actor* vobj;
+        };
+
+    class actor : unordered_map<std::string, value>
+    {
+    public:
+        actor()
+        {
+
+        }
+        virtual ~actor()
+        {
+            
+        }
+        // set支持std::int64_t、std::bool、std::string、actor
+        void set(k, v)
+        // get运算符重载，支持std::int64_t、std::string、actor，
+        // 如： if (actor.get("key") == "abc" && actor.get("is_man") == true && actor.get("year") == 101)
+        template<typename T>
+        T get(k, v);
+    };
+
+    1、actor是一个c++对象，用于存储k-v键值对，v类型支持std::int64_t、std::bool、std::string、actor
+    2、补全set函数，先查找，有则改变，无则新建
+    3、补全get函数
+    4、set和get的k类型支持const char* 和std::string，std::string调用const char*的函数
+    5、补全运算符重载，支持条件语句：if (actor.get("key") == "abc" && actor.get("is_man") == true && actor.get("year") == 101)，
+        整型支持：=、!=、>、<、=>、<=，
+        BOOL支持：=、!=
+        字符串支持：=、!=
+    6、返回值对象使用const char*记录k，以避免string类构建导致性能损耗
+    7、所有函数使用inline标识
+        
+
+回答1：
+#include <unordered_map>
+#include <string>
+#include <cstdint>
+
+class actor;
+
+// 字节对齐
+struct value {
+    std::uint8_t type; // 0: int64_t, 1: bool, 2: string, 3: actor*
+    std::int64_t vint;
+    std::string vstr;
+    actor* vobj;
+};
+
+class actor : public std::unordered_map<std::string, value> {
+public:
+    actor() {}
+
+    virtual ~actor() {}
+
+    // set支持std::int64_t、std::bool、std::string、actor
+    // set函数，先查找，有则改变，无则新建
+    // 支持const char*和std::string作为键，std::string调用const char*的函数
+    void set(const char* k, std::int64_t v) {
+        auto it = this->find(k);
+        if (it != this->end()) {
+            it->second.type = 0;
+            it->second.vint = v;
+        } else {
+            value val;
+            val.type = 0;
+            val.vint = v;
+            (*this)[k] = val;
+        }
+    }
+
+    void set(const char* k, bool v) {
+        auto it = this->find(k);
+        if (it != this->end()) {
+            it->second.type = 1;
+            it->second.vint = v;
+        } else {
+            value val;
+            val.type = 1;
+            val.vint = v;
+            (*this)[k] = val;
+        }
+    }
+
+    void set(const char* k, const std::string& v) {
+        auto it = this->find(k);
+        if (it != this->end()) {
+            it->second.type = 2;
+            it->second.vstr = v;
+        } else {
+            value val;
+            val.type = 2;
+            val.vstr = v;
+            (*this)[k] = val;
+        }
+    }
+
+    void set(const char* k, actor* v) {
+        auto it = this->find(k);
+        if (it != this->end()) {
+            it->second.type = 3;
+            it->second.vobj = v;
+        } else {
+            value val;
+            val.type = 3;
+            val.vobj = v;
+            (*this)[k] = val;
+        }
+    }
+
+    // 支持std::string作为键，调用const char*的函数
+    void set(const std::string& k, std::int64_t v) {
+        set(k.c_str(), v);
+    }
+
+    void set(const std::string& k, bool v) {
+        set(k.c_str(), v);
+    }
+
+    void set(const std::string& k, const std::string& v) {
+        set(k.c_str(), v);
+    }
+
+    void set(const std::string& k, actor* v) {
+        set(k.c_str(), v);
+    }
+
+    // get运算符重载，支持std::int64_t、std::string、actor，
+    // 支持const char*和std::string作为键
+    template<typename T>
+    T get(const char* k) {
+        auto it = this->find(k);
+        if (it == this->end()) {
+            // Handle key not found, return default value
+            return T();
+        }
+
+        value& val = it->second;
+
+        if constexpr (std::is_same<T, std::int64_t>::value) {
+            if (val.type == 0 || val.type == 1) // int64_t or bool
+                return val.vint;
+            else
+                return 0; // Invalid type, return default
+        }
+        else if constexpr (std::is_same<T, bool>::value) {
+            if (val.type == 1)
+                return static_cast<bool>(val.vint);
+            else if (val.type == 0)
+                return static_cast<bool>(val.vint);
+            else
+                return false; // Invalid type, return default
+        }
+        else if constexpr (std::is_same<T, std::string>::value) {
+            if (val.type == 2)
+                return val.vstr;
+            else
+                return ""; // Invalid type, return empty string
+        }
+        else if constexpr (std::is_same<T, actor*>::value) {
+            if (val.type == 3)
+                return val.vobj;
+            else
+                return nullptr; // Invalid type, return null
+        }
+        else {
+            // Unsupported type
+            return T();
+        }
+    }
+
+    template<typename T>
+    T get(const std::string& k) {
+        return get<T>(k.c_str());
+    }
+
+    // 重载比较运算符以支持条件语句中的比较
+    class actor_get_result {
+    public:
+        actor_get_result(actor& a, const std::string& k) : a(a), k(k) {}
+
+        // 重载比较运算符
+        bool operator==(const std::string& v) const {
+            return a.get<std::string>(k) == v;
+        }
+
+        bool operator!=(const std::string& v) const {
+            return a.get<std::string>(k) != v;
+        }
+
+        bool operator==(bool v) const {
+            return a.get<bool>(k) == v;
+        }
+
+        bool operator!=(bool v) const {
+            return a.get<bool>(k) != v;
+        }
+
+        bool operator==(std::int64_t v) const {
+            return a.get<std::int64_t>(k) == v;
+        }
+
+        bool operator!=(std::int64_t v) const {
+            return a.get<std::int64_t>(k) != v;
+        }
+
+        bool operator<(std::int64_t v) const {
+            return a.get<std::int64_t>(k) < v;
+        }
+
+        bool operator<=(std::int64_t v) const {
+            return a.get<std::int64_t>(k) <= v;
+        }
+
+        bool operator>(std::int64_t v) const {
+            return a.get<std::int64_t>(k) > v;
+        }
+
+        bool operator>=(std::int64_t v) const {
+            return a.get<std::int64_t>(k) >= v;
+        }
+
+    private:
+        actor& a;
+        std::string k;
+    };
+
+    actor_get_result get(const std::string& k) {
+        return actor_get_result(*this, k);
+    }
+
+    actor_get_result get(const char* k) {
+        return actor_get_result(*this, std::string(k));
+    }
+};
+
+回答2：
+#include <unordered_map>
+#include <string>
+#include <cstdint>
+
+// 字节对齐
+#pragma pack(push, 1)
+struct value {
+    std::uint8_t type; // 0: int64_t, 1: bool, 2: string, 3: actor*
+    std::int64_t vint;
+    std::string vstr;
+    class actor* vobj;
+};
+#pragma pack(pop)
+
+class actor : public std::unordered_map<std::string, value> {
+private:
+    const char* key;
+
+public:
+    inline actor() : key(nullptr) {}
+
+    inline virtual ~actor() {}
+
+    // set支持std::int64_t、std::bool、std::string、actor
+    // set函数，先查找，有则改变，无则新建
+    // 支持const char*和std::string作为键，std::string调用const char*的函数
+    inline void set(const char* k, std::int64_t v) {
+        auto it = this->find(k);
+        if (it != this->end()) {
+            it->second.type = 0;
+            it->second.vint = v;
+        } else {
+            value val;
+            val.type = 0;
+            val.vint = v;
+            (*this)[k] = val;
+        }
+    }
+
+    inline void set(const char* k, bool v) {
+        auto it = this->find(k);
+        if (it != this->end()) {
+            it->second.type = 1;
+            it->second.vint = v;
+        } else {
+            value val;
+            val.type = 1;
+            val.vint = v;
+            (*this)[k] = val;
+        }
+    }
+
+    inline void set(const char* k, const std::string& v) {
+        auto it = this->find(k);
+        if (it != this->end()) {
+            it->second.type = 2;
+            it->second.vstr = v;
+        } else {
+            value val;
+            val.type = 2;
+            val.vstr = v;
+            (*this)[k] = val;
+        }
+    }
+
+    inline void set(const char* k, actor* v) {
+        auto it = this->find(k);
+        if (it != this->end()) {
+            it->second.type = 3;
+            it->second.vobj = v;
+        } else {
+            value val;
+            val.type = 3;
+            val.vobj = v;
+            (*this)[k] = val;
+        }
+    }
+
+    // 支持std::string作为键，调用const char*的函数
+    inline void set(const std::string& k, std::int64_t v) {
+        set(k.c_str(), v);
+    }
+
+    inline void set(const std::string& k, bool v) {
+        set(k.c_str(), v);
+    }
+
+    inline void set(const std::string& k, const std::string& v) {
+        set(k.c_str(), v);
+    }
+
+    inline void set(const std::string& k, actor* v) {
+        set(k.c_str(), v);
+    }
+
+    // get运算符重载，支持std::int64_t、std::string、actor，
+    // 支持const char*和std::string作为键
+    template<typename T>
+    inline T get(const char* k) {
+        auto it = this->find(k);
+        if (it == this->end()) {
+            return T();
+        }
+
+        value& val = it->second;
+
+        if constexpr (std::is_same<T, std::int64_t>::value) {
+            if (val.type == 0 || val.type == 1)
+                return val.vint;
+            else
+                return 0;
+        }
+        else if constexpr (std::is_same<T, bool>::value) {
+            if (val.type == 1)
+                return static_cast<bool>(val.vint);
+            else if (val.type == 0)
+                return static_cast<bool>(val.vint);
+            else
+                return false;
+        }
+        else if constexpr (std::is_same<T, std::string>::value) {
+            if (val.type == 2)
+                return val.vstr;
+            else
+                return "";
+        }
+        else if constexpr (std::is_same<T, actor*>::value) {
+            if (val.type == 3)
+                return val.vobj;
+            else
+                return nullptr;
+        }
+        else {
+            return T();
+        }
+    }
+
+    template<typename T>
+    inline T get(const std::string& k) {
+        return get<T>(k.c_str());
+    }
+
+    // 重载比较运算符以支持条件语句中的比较
+    inline actor_get_result get(const std::string& k) {
+        key = k.c_str();
+        return actor_get_result(*this, key);
+    }
+
+    inline actor_get_result get(const char* k) {
+        key = k;
+        return actor_get_result(*this, key);
+    }
+
+    // 辅助类用于比较运算符重载
+    class actor_get_result {
+    public:
+        actor_get_result(actor& a, const char* k) : a(a), k(k) {}
+
+        bool operator==(const std::string& v) const {
+            return a.get<std::string>(k) == v;
+        }
+
+        bool operator!=(const std::string& v) const {
+            return a.get<std::string>(k) != v;
+        }
+
+        bool operator==(bool v) const {
+            return a.get<bool>(k) == v;
+        }
+
+        bool operator!=(bool v) const {
+            return a.get<bool>(k) != v;
+        }
+
+        bool operator==(std::int64_t v) const {
+            return a.get<std::int64_t>(k) == v;
+        }
+
+        bool operator!=(std::int64_t v) const {
+            return a.get<std::int64_t>(k) != v;
+        }
+
+        bool operator<(std::int64_t v) const {
+            return a.get<std::int64_t>(k) < v;
+        }
+
+        bool operator<=(std::int64_t v) const {
+            return a.get<std::int64_t>(k) <= v;
+        }
+
+        bool operator>(std::int64_t v) const {
+            return a.get<std::int64_t>(k) > v;
+        }
+
+        bool operator>=(std::int64_t v) const {
+            return a.get<std::int64_t>(k) >= v;
+        }
+
+    private:
+        actor& a;
+        const char* k;
+    };
+};
+
+示例：
+actor a;
+a.set("key", "abc");
+a.set("is_man", true);
+a.set("year", 101);
+
+if (a.get("key") == "abc" && a.get("is_man") == true && a.get("year") == 101) {
+    // 条件成立
+}

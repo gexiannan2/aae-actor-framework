@@ -1,0 +1,100 @@
+
+
+一、工程信息
+工程：c(最高版) + c++(最高版) + vscode + cmake + wsl + window
+平台：windows x64、ubuntu x64
+
+二、目录文件结构：
+projs 是根目录
+projs->CMakeList.txt ： 顶层CMakeList
+projs->build.sh ： wsl构建脚本
+projs->rebuild.sh ： wsl重构脚本
+projs->build.bat ： win构建脚本
+projs->rebuild.bat ： wsl重构脚本
+projs->bin ： 二进制程序输出目录、及so、dll文件所在目录
+projs->build : 构建目录
+projs->src : 源码目录
+projs->src->common ： 公共目录
+projs->src->common-CMakeList.txt ： 公共CMakeList
+projs->src->proj_a ： 项目A目录
+projs->src->proj_a-CMakeList.txt ： 子项目CMakeList（Include公共CMakeList）
+projs->src->proj_b ： 项目b目录
+projs->src->proj_b-CMakeList.txt ： 子项目CMakeList（Include公共CMakeList）
+projs->src->proj_c ： 项目c目录
+projs->src->proj_c-CMakeList.txt ： 子项目CMakeList（Include公共CMakeList）
+
+三、顶层CMakeList样例：
+
+# 解决方案
+project(projs)
+
+# 在这里增加项目
+add_subdirectory(src/server1)
+add_subdirectory(src/server2)
+
+
+四、子项目CMakeList样例：
+# 设置项目名称（自动以父目录名为项目名，可修改）
+string(REGEX REPLACE ".*/(.*)" "\\1" PROJECT_NAME ${CMAKE_CURRENT_SOURCE_DIR})
+project(${PROJECT_NAME})
+
+# 设置项目类型（可修改）
+set(PROJECT_TYPE "EXE")  # 可选值：EXE, DLL, LIB
+
+# 设置输出目录（可修改，默认*.so放在这里，h文件设置LIB_DIRS）
+set(OUT_DIR "../../out/bin")
+
+# 设置源码目录列表（可修改，自动搜索子目录，默认包含项目CMakeLists所在目录）
+set(SRC_DIRS
+    "../common/aa_eng"
+)
+
+# 设置库目录列表（可修改，自动加入libx/include、libx/lib/*.a、libx/lib/*.so）
+set(LIB_DIRS
+    
+)
+
+# 安装在编译平台系统中的库，仅需在这里设置库名即可：
+set(LINK_NAMES
+
+)
+
+# 包含公共CMakeLists
+include(../common/CMakeLists.txt)
+
+五、公共CMakeLists要求
+*初始化变量：LINK_DIRS、LINK_NAMES、INC_DIRS、SRC_FILES
+*自动将LIB_DIRS/lib目录加入到变量LINK_DIRS中
+*根据平台类型自动搜索LIB_DIRS/lib下的.a/.lib文件加到变量LINK_NAMES中
+*自动将OUT_DIR加入库目录变量LINK_DIRS中
+*根据平台类型自动搜索OUT_DIR下的.so/.dll文件加到LINK_NAMES变量中
+*根据平台类型LINK_NAMES要去路径、去后缀和去前缀lib（wsl）等
+*自动将子项目CMakeLists.txt所在目录加入SRC_DIRS
+*自动把OUT_DIR/include目录及OUT_DIR/include的所有子目录（递归搜索）加到变量INC_DIRS中
+*自动把SRC_DIRS目录及SRC_DIRS的所有子目录（递归搜索）加到变量INC_DIRS中
+*自动把SRC_DIRS下cpp/c文件加入源码文件列表变量中：SRC_FILES
+*根据平台类型设置程序启动加载so/dll的路径是程序所在目录
+*根据PROJECT_TYPE和OUT_DIR设置输出目录
+*打印INC_DIRS和把INC_DIRS设置到include_directories
+*打印SRC_FILES和根据PROJECT_TYPE把SRC_FILES设置到CMake的源文件设置中（add_executable/add_library）
+*打印LINK_DIRS和把LINK_DIRS设置link_directories
+*打印LINK_NAMES和把LINK_NAMES设置到target_link_libraries
+*根据上面要求逐步实现公共CMakeLists（重要:不要乱序）
+*补全实现完整的CMakeLists
+
+六、编译要求
+*vscode支持windows64/wsl-ubuntu64/debug/release选项编译
+*vscode支持全部启动和单个项目启动（如：projs\proj_a\proj_b）
+*构建脚本分windows64和wsl-ubuntu64，支持debug/release参数编译
+*构建脚本默认是debug模式，支持参数输入 release选项编译
+*SRC_DIRS和LIB_DIRS目录下的cpp/h等源码文件数量变化时自动重新CMake，除非是rebuild否则其它情况不会重新CMake以提高构建效率
+*代码文件数量变化（增删）时让vscode自动调用CMake Config，仅文件内容变化时不重新CMake Config，这样可以提高启动速度（如需安装插件请给出）
+*无需手动修改c_cpp_properties能让vscode跳转到代码定义处
+*当vscode在windows模式，wscode的工程选项仅出现windows部分，当vscode连接wsl时，wscode的工程选项仅出现ubunut部分
+
+七、请根据上述要求输出完整结果：
+*3个顶层、子项目和公共CMakeLists.txt文件
+*4个cscode的配置文件：c_cpp_properties.json、launch.json、settings.json、tasks.json、launch
+*4个构建脚本文件：build.sh、rebuild.sh、build.bat、rebuild.bat
+*上述文件不需要的可以省略
+*如需安装插件请给出

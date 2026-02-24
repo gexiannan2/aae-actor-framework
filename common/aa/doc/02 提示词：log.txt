@@ -1,0 +1,167 @@
+
+任务：用c++写多线程日志模块，
+目标平台：linux、windows要兼容
+
+日志模块公开API头文件：aa_log.h
+日志模块内部API头文件（记住是aa.）：aa.log.h， 引用aa_log.h
+日志模块实现CPP文件（记住是aa.）：aa.log.cpp， 引用aa.log.h
+
+aa_log.h:
+
+namespace aa
+{
+    // 日志级别枚举
+    enum LogLevel
+    {
+        LOG_LEVEL_INFO = 0,
+        LOG_LEVEL_DEBUG,
+        LOG_LEVEL_WARNING,
+        LOG_LEVEL_ERROR
+    };
+
+    // 日志项
+    class log_item
+    {
+    public:
+        log_item* next;                 // 单向链表指针
+        std::time_t time;               // 日志时间
+        int file_flag;                  // 日志标志
+        int log_level;                  // 日志等级
+        const char* src_file;           // 调用日志函数所在C++文件名
+        int src_line;                   // 调用日志函数所在C++文件行数
+        std::uint64_t thread_id;        // 调用日志的线程id
+        std::ostringstream context;     // 日志内容流体对象
+    };
+
+    // 模板输出函数
+    template<typename... Args>
+    inline void output(int file_flag, int log_level, const char* file, int line, const char* fmt, Args... args)
+    {
+        extern bool is_setoutdebug();
+        if (log_level == LOG_LEVEL_DEBUG && !is_setoutdebug())
+        {
+            return;
+        }
+
+        // 创建日志项
+        extern log_item* malloc_item();
+        log_item* item = malloc_item();
+
+        item->next = nullptr;
+        item->time = std::time(nullptr);
+        item->file_flag = file_flag;
+        item->log_level = log_level;
+        item->src_file = file;
+        item->src_line = line;
+        item->thread_id = aa::os_get_curr_thread_id(); // 跨平台获取线程ID
+        
+        // 格式化日志内容
+        item->context << fmt;
+        (void)(item->context << ... << args);
+        
+        // 将日志项传递给后台线程处理
+        extern void do_output(log_item*);
+        do_output(item);
+    }
+
+    // 默认日志宏
+    #define print_info(format, ...) aa::output(0, aa::LOG_LEVEL_INFO, __FILE__, __LINE__, format, ## __VA_aargs__)
+    #define print_debug(format, ...) aa::output(0, aa::LOG_LEVEL_DEBUG, __FILE__, __LINE__, format, ## __VA_aargs__)
+    #define print_warning(format, ...) aa::output(0, aa::LOG_LEVEL_WARNING, __FILE__, __LINE__, format, ## __VA_aargs__)
+    // 同时打印堆栈
+    #define print_error(format, ...) aa::output(0, aa::LOG_LEVEL_ERROR, __FILE__, __LINE__, format, ## __VA_aargs__)
+
+    // 模块日志宏
+    #define print_my_info(file_flag, format, ...) aa::output(file_flag, aa::LOG_LEVEL_INFO, __FILE__, __LINE__, format, ## __VA_aargs__)
+    #define print_my_debug(file_flag, format, ...) aa::output(file_flag, aa::LOG_LEVEL_DEBUG, __FILE__, __LINE__, format, ## __VA_aargs__)
+    #define print_my_warning(file_flag, format, ...) aa::output(file_flag, aa::LOG_LEVEL_WARNING, __FILE__, __LINE__, format, ## __VA_aargs__)
+    // 同时打印堆栈
+    #define print_my_error(file_flag, format, ...) aa::output(file_flag, aa::LOG_LEVEL_ERROR, __FILE__, __LINE__, format, ## __VA_aargs__)
+
+    // 全局API函数声明
+    void set_info(const std::string& process_flag, const std::string& root_dir = "");
+    int addfile(const std::string& file_flag);
+
+}
+
+以上是日志API头文件：aa_log.h
+
+aa.log.cpp 要求：
+
+函数set_info:
+process_flag: 一般是ip:port（含ipv6），logger的process_flag_file_name是要把IP地址的:替换为.，端口冒号去掉用[]把端口框起来（含ipv6）
+root_dir：默认调用log_app.h的get_exe_dir + “/../logs”, 一次性获取
+
+函数is_setoutdebug：
+
+函数addfile：
+增加日志文件标志，每一个标志一个日志文件系列（log_file）
+
+函数do_output: 调用logger的output方法把log_item写入单向链表中
+
+有类logger
+get_logger() 返回logger的单例引用
+
+logger有锁、单向链表头和尾、未写日志数量、process_flag、process_flag_name、exe_name、空闲的log_item(超过一定数量则delete，由malloc_item分配)、日志文件类（log_file，每个file_flag一个）、root_dir等
+logger析构时自动释放单向链表头和空闲的log_tiem
+
+
+类log_file有待写入文件的数据对象pending_writes(std::ostringstream)、文件句柄等信息
+
+当logger单向链表为空时，或者log_file的pending_writes大于一定数量时立即写入
+
+aa.log.cpp 有log_mgr类，实现进程实例标准、线程信息、全局变量队列、线程等的初始化和管理：g_log_mgr
+
+每小时一个日志文件，每个文件超过20M（可设置）则文件名序号递增换名，所有日志写一个总文件中，除了info等级的
+日志文件命名格式：
+年-月-日-时-exe_name(process_flag_file_name)(index).log
+exe_name：调用log_app.h的get_exe_name一次性获取
+index：文件大小没超过一定数量序号自增1
+
+默认日志文件名：
+2023-01-01-14-aa_svr(127.0.0.1[6800])-(01).log
+2023-01-01-14-aa_svr(127.0.0.1[6800])-(02).log
+默认日志错误/警告提示文件：
+2023-01-01-14-aa_svr(127.0.0.1[6800])-(EW).log
+
+自定义标志日志文件名：
+2023-01-01-14-aa_svr(127.0.0.1[6800])-log_file(01).log
+2023-01-01-14-aa_svr(127.0.0.1[6800])-log_file(02).log
+自定义标志错误/警告提示文件：
+2023-01-01-14-aa_svr(127.0.0.1[6800])-log_file(EW).log
+
+
+日志内容举例（默认日志无log_flag，net是log_flag）
+10（待写日志数量） >> 2023-01-01 12:12:12.897 >> aa_svr(127.0.0.1[6800]) >> [I] >> thread_name(thread_id) >> file_name(line) >> context
+10（待写日志数量） >> 2023-01-01 12:12:12.897 >> aa_svr(127.0.0.1[6800]) >> [E] >> net(file_flag, 默认日志无file_flag) >> thread_name(thread_id) >> file_name(line) >> context
+
+错误/警告提示日志文件内容举例
+Error: 1235  当前小时内错误数量
+Waring: 7896  当前小时内警告数量
+
+aa.log.h：
+int get_error_count() // 获取错误日志数量
+
+日志线程加一次性读取单向链表的头尾后将logger的头尾置空解锁
+然后
+curr = head;
+while(curr)
+{
+    // 写入对应log_file
+    // ...
+    curr = {}
+    curr = curr->next;
+}
+
+
+请根据上述要求，补全所有功能代码。性能优先，避免数据重复复制。
+
+log模块是一个独立的代码单元，会被其他模块引用
+
+除了提到公共部分，其他都是私有的，不能对外部公开
+
+注：
+1、请使用unordered_map，注意include <unordered_map>
+2、如果兼容windows/linux
+
+切记要严格遵守代码规范：完成之后检查一下是否符合代码规范，不符合的请重新做！！！
