@@ -1,0 +1,133 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "sapp (win)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}\\common\\aa\\lib\\aae.exe",
+      "args": ["mainfile", "${workspaceFolder}\\sapp\\main.lua"],
+      "cwd": "${workspaceFolder}\\sapp\\",
+      "environment": [],
+      "externalConsole": false,  // ✅ 确保为 false
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:\\mingw64\\bin\\gdb.exe",
+      "setupCommands": [
+        {
+          "description": "为 gdb 启用整齐打印",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "all"
+    },
+    {
+      "name": "sgate (win)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}\\common\\aa\\lib\\aae.exe",
+      "args": ["mainfile", "${workspaceFolder}\\sgate\\main.lua"],
+      "cwd": "${workspaceFolder}\\sgate\\",
+      "environment": [],
+      "externalConsole": false,  // ✅ 确保为 false
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:\\mingw64\\bin\\gdb.exe",
+      "setupCommands": [
+        {
+          "description": "为 gdb 启用整齐打印",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "all"
+    },
+    {
+      "name": "sapp (wsl)",
+      "type": "cppdbg",
+      "request": "launch",      
+      "program": "${workspaceFolder}/common/aa/lib/aae",
+      "args": ["mainfile", "${workspaceFolder}/sapp/main.lua"],
+      "cwd": "${workspaceFolder}/sapp/",
+      "stopOnEntry": false,
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "preLaunchTask": "all"
+    },
+    {
+      "name": "sgate (wsl)",
+      "type": "cppdbg",
+      "request": "launch",      
+      "program": "${workspaceFolder}/common/aa/lib/aae",
+      "args": ["mainfile", "${workspaceFolder}/sgate/main.lua"],
+      "cwd": "${workspaceFolder}/sgate/",
+      "stopOnEntry": false,
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "preLaunchTask": "all"
+    },
+    {
+      "name": "LuaPanda: sapp (win)",
+      "type": "lua",
+      "request": "launch",
+      "runtimeType": "LuaPanda",
+      "runtimeExecutable": "${workspaceFolder}\\common\\aa\\lib\\aae.exe",
+      "runtimeArgs": ["mainfile", "${workspaceFolder}\\sapp\\main.lua"],
+      "cwd": "${workspaceFolder}\\sapp\\",
+      "path": [
+        "${workspaceFolder}/sapp",
+        "${workspaceFolder}/common/aa/lib",
+        "${workspaceFolder}/common/app"
+      ],
+      "fileExtension": "lua",
+      "stopOnEntry": false,
+      "preLaunchTask": "all"
+    },
+    {
+      "name": "LuaPanda: sgate (win)",
+      "type": "lua",
+      "request": "launch",
+      "runtimeType": "LuaPanda",
+      "runtimeExecutable": "${workspaceFolder}\\common\\aa\\lib\\aae.exe",
+      "runtimeArgs": ["mainfile", "${workspaceFolder}\\sgate\\main.lua"],
+      "cwd": "${workspaceFolder}\\sgate\\",
+      "path": [
+        "${workspaceFolder}/sgate",
+        "${workspaceFolder}/common/aa/lib",
+        "${workspaceFolder}/common/app"
+      ],
+      "fileExtension": "lua",
+      "stopOnEntry": false,
+      "preLaunchTask": "all"
+    },
+    {
+      "type": "lua",
+      "request": "launch",
+      "tag": "normal",
+      "name": "LuaPanda",
+      "description": " launchVer:3.2.0",
+      "cwd": "${workspaceFolder}",
+      "luaFileExtension": "",
+      "connectionPort": 8818,
+      "stopOnEntry": true,
+      "useCHook": true,
+      "autoPathMode": true
+    } ,
+    {
+      "name": "LuaPanda: sgate (wsl)",
+      "type": "lua",
+      "request": "launch",
+      "runtimeType": "LuaPanda",
+      "runtimeExecutable": "${workspaceFolder}/common/aa/lib/aae",
+      "runtimeArgs": ["mainfile", "${workspaceFolder}/sgate/main.lua"],
+      "cwd": "${workspaceFolder}/sgate/",
+      "path": [
+        "${workspaceFolder}/sgate",
+        "${workspaceFolder}/common/aa/lib",
+        "${workspaceFolder}/common/app"
+      ],
+      "fileExtension": "lua",
+      "stopOnEntry": false,
+      "preLaunchTask": "all"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+buildType:
+  default: debug
+  choices:
+    debug:
+      short: Debug
+      long: Debug build
+      settings: { CMAKE_BUILD_TYPE: Debug }
+    release:
+      short: Release
+      long: Release build
+      settings: { CMAKE_BUILD_TYPE: Release }
+
+targetOs:
+  default: auto
+  choices:
+    windows:
+      short: Windows
+      long: Windows x64
+      settings:
+        CMAKE_C_COMPILER: cl.exe
+        CMAKE_CXX_COMPILER: cl.exe
+      condition: { host: win32 }
+    ubuntu:
+      short: Ubuntu
+      long: Ubuntu x64 (WSL)
+      settings:
+        CMAKE_C_COMPILER: gcc
+        CMAKE_CXX_COMPILER: g++
+      condition: { host: linux }
