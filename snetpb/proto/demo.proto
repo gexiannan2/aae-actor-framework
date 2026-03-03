@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package snetpb;
+
+message NetEnvelope
+{
+  uint64 seq = 1;
+  uint32 cmd = 2;
+  uint64 player_id = 3;
+  uint64 room_id = 4;
+  bytes body = 5;
+  uint32 code = 6;
+  string trace = 7;
+}
+
+message LoginReq
+{
+  uint64 player_id = 1;
+  string token = 2;
+  string device = 3;
+}
+
+message LoginRsp
+{
+  uint64 player_id = 1;
+  string nickname = 2;
+  uint32 result = 3;
+  string message = 4;
+}
+
+message MatchReq
+{
+  uint64 player_id = 1;
+  uint64 room_id = 2;
+  uint32 mode = 3;
+}
+
+message MatchRsp
+{
+  uint64 player_id = 1;
+  uint64 room_id = 2;
+  uint32 state = 3;
+  string message = 4;
+}
+
+message UdpPing
+{
+  uint64 seq = 1;
+  uint64 sent_ms = 2;
+  string note = 3;
+}

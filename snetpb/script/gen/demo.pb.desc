@@ -1,0 +1,34 @@
+
+¤
+
+demo.protosnetpb"¥
+NetEnvelope
+seq (Rseq
+cmd (Rcmd
+	player_id (RplayerId
+room_id (RroomId
+body (Rbody
+code (Rcode
+trace (	Rtrace"U
+LoginReq
+	player_id (RplayerId
+token (	Rtoken
+device (	Rdevice"u
+LoginRsp
+	player_id (RplayerId
+nickname (	Rnickname
+result (Rresult
+message (	Rmessage"T
+MatchReq
+	player_id (RplayerId
+room_id (RroomId
+mode (Rmode"p
+MatchRsp
+	player_id (RplayerId
+room_id (RroomId
+state (Rstate
+message (	Rmessage"H
+UdpPing
+seq (Rseq
+sent_ms (RsentMs
+note (	Rnotebproto3

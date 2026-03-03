@@ -197,7 +197,9 @@ namespace athd
         {
             node->job_name_ = job_name;
         }
-        node->sender_ = curr_thread_;
+        // 允许非 athd 线程向 actor 线程投递任务。
+        // 这类线程没有 curr_thread_，回执就回到目标线程自身，避免空指针。
+        node->sender_ = curr_thread_ ? curr_thread_ : this;
         node->job_ptr_ = job_ptr;
         node->result_ = result;
         node->work_fn_ = work_fn;

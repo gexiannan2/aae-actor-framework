@@ -68,6 +68,10 @@ function athd.ondone(job_id, sargs)
         return
     end
     local tmp = mp.unpack(sargs)
+    if type(tmp) ~= "table" then
+        done_fn(tmp)
+        return
+    end
     done_fn(table.unpack(tmp, 1, tmp.n or #tmp))
 end
 

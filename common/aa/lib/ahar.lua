@@ -19,7 +19,7 @@ end
 local pb_decode = function (name, buf)
     return ahar.mp.unpack(buf)
 end
-local mp = "cmsgpack"
+local mp = require "cmsgpack"
 local mp_encode = mp.pack
 local mp_decode = mp.unpack
 
